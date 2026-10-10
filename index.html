@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3A6B8">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ردیاب هفتگی روتین دانش‌آموزی</title>
+<style>
+  :root {
+    --cream: #FFF1DC; --card: #FFFAF2; --pink: #F3A6B8; --rose: #E98FA8;
+    --light: #F6BFD0; --mint: #9DD9C3; --purple: #B9A7E8; --butter: #F6D77A;
+    --text: #6B4A5E;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: var(--cream); color: var(--text);
+    font-family: "Vazirmatn", "Tahoma", "Segoe UI", system-ui, sans-serif;
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  header { background: var(--pink); border-radius: 22px; padding: 14px; text-align: center; }
+  h1 { margin: 0; font-size: 22px; }
+  h2 { margin: 2px 0 10px; font-size: 18px; color: var(--rose); }
+  .bar { height: 10px; background: var(--cream); border-radius: 99px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--mint); border-radius: 99px; transition: width .3s; }
+  .count { margin-top: 6px; font-size: 13px; font-weight: bold; }
+  #msg { display: none; background: var(--butter); border-radius: 14px; padding: 8px; text-align: center; font-weight: bold; font-size: 14px; }
+  .card { background: var(--card); border-radius: 18px; padding: 8px; }
+  .head { border-radius: 14px; padding: 8px; display: flex; align-items: center; justify-content: space-between; font-weight: bold; font-size: 15px; }
+  .days { display: flex; margin-top: 8px; }
+  .day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 9.5px; white-space: nowrap; }
+  .dot {
+    width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0;
+    background: var(--light); color: var(--text); font-size: 18px; font-weight: bold;
+    cursor: pointer; font-family: inherit;
+  }
+  .dot.on { background: var(--mint); animation: pop .25s; }
+  @keyframes pop { 50% { transform: scale(1.25); } }
+  #reset {
+    background: var(--purple); color: #fff; border: 0; border-radius: 20px;
+    padding: 12px; font-size: 15px; font-weight: bold; font-family: inherit; cursor: pointer;
+  }
+  footer { text-align: center; font-size: 12px; font-weight: bold; color: var(--rose); padding: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌸 ردیاب هفتگی 🌸</h1>
+    <h2>روتین دانش‌آموزی</h2>
+    <div class="bar"><div id="bar"></div></div>
+    <div class="count" id="count"></div>
+  </header>
+  <div id="msg"></div>
+  <div id="cards" style="display:flex;flex-direction:column;gap:10px"></div>
+  <button id="reset">🌙 هفته جدید</button>
+  <footer>made by saba safari 💖</footer>
+</div>
+
+<script>
+(function () {
+  var TASKS = [
+    ["🔢", "سوال‌های ریاضی", "#91C9E8"],
+    ["✏️", "خط دیکته", "#D0A9D6"],
+    ["📖", "روخوانی فارسی", "#F7B99A"],
+    ["🥗", "تغذیه سالم", "#9DD9C3"],
+    ["🤝", "کمک به اعضای خانواده یا دوستان", "#F3A6B8"],
+    ["🍳", "صبحانه", "#F6D77A"],
+    ["🪥", "مسواک زدن", "#91C9E8"],
+    ["🧦", "شستن جوراب‌ها", "#B9A7E8"],
+    ["👕", "آویز کردن لباس‌ها", "#F7B99A"]
+  ];
+  var DAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+  var TOTAL = TASKS.length * DAYS.length;
+  var KEY = "saba_weekly_tracker_v1";
+
+  function emptyState() {
+    return TASKS.map(function () { return DAYS.map(function () { return false; }); });
+  }
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(KEY));
+      if (d && d.length === TASKS.length && d.every(function (r) { return r.length === DAYS.length; })) return d;
+    } catch (e) {}
+    return emptyState();
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function fa(n) { return n.toLocaleString("fa-IR"); }
+
+  var state = load();
+  var dots = {}, stars = [];
+  var cards = document.getElementById("cards");
+  var msg = document.getElementById("msg");
+  var bar = document.getElementById("bar");
+  var count = document.getElementById("count");
+  var resetBtn = document.getElementById("reset");
+
+  function showMsg(t) { msg.textContent = t; msg.style.display = "block"; }
+  function hideMsg() { msg.style.display = "none"; }
+
+  function paintDot(t, d) {
+    var el = dots[t + "-" + d];
+    el.className = "dot" + (state[t][d] ? " on" : "");
+    el.textContent = state[t][d] ? "✓" : "";
+  }
+  function summary() {
+    var done = 0;
+    state.forEach(function (row, t) {
+      row.forEach(function (x) { if (x) done++; });
+      stars[t].textContent = row.every(Boolean) ? "🌟" : "";
+    });
+    bar.style.width = (done / TOTAL * 100) + "%";
+    count.textContent = "⭐ " + fa(done) + " از " + fa(TOTAL);
+  }
+
+  function toggle(t, d) {
+    state[t][d] = !state[t][d];
+    paintDot(t, d);
+    summary();
+    save();
+    if (state.every(function (r) { return r.every(Boolean); })) {
+      showMsg("🎉🏆 وای! کل هفته رو کامل کردی! تو فوق‌العاده‌ای! 🏆🎉");
+    } else if (state[t][d] && state[t].every(Boolean)) {
+      showMsg("🌟 آفرین! «" + TASKS[t][1] + "» این هفته کامل شد! 🌟");
+    } else {
+      hideMsg();
+    }
+  }
+
+  TASKS.forEach(function (task, t) {
+    var card = document.createElement("div");
+    card.className = "card";
+
+    var head = document.createElement("div");
+    head.className = "head";
+    head.style.background = task[2];
+    var title = document.createElement("span");
+    title.textContent = task[0] + " " + task[1];
+    var star = document.createElement("span");
+    stars[t] = star;
+    head.appendChild(title);
+    head.appendChild(star);
+
+    var days = document.createElement("div");
+    days.className = "days";
+    DAYS.forEach(function (name, d) {
+      var col = document.createElement("div");
+      col.className = "day";
+      var label = document.createElement("span");
+      label.textContent = name;
+      var dot = document.createElement("button");
+      dot.type = "button";
+      dot.setAttribute("aria-label", task[1] + " - " + name);
+      dot.addEventListener("click", function () { toggle(t, d); });
+      dots[t + "-" + d] = dot;
+      col.appendChild(label);
+      col.appendChild(dot);
+      days.appendChild(col);
+      paintDot(t, d);
+    });
+
+    card.appendChild(head);
+    card.appendChild(days);
+    cards.appendChild(card);
+  });
+
+  var confirming = false, timer = null;
+  resetBtn.addEventListener("click", function () {
+    if (!confirming) {
+      confirming = true;
+      resetBtn.textContent = "مطمئنی؟ دوباره بزن 🌈";
+      timer = setTimeout(function () {
+        confirming = false;
+        resetBtn.textContent = "🌙 هفته جدید";
+      }, 4000);
+      return;
+    }
+    clearTimeout(timer);
+    confirming = false;
+    resetBtn.textContent = "🌙 هفته جدید";
+    state = emptyState();
+    TASKS.forEach(function (_, t) { DAYS.forEach(function (__, d) { paintDot(t, d); }); });
+    summary();
+    save();
+    showMsg("🌈 هفته جدید شروع شد! موفق باشی! 🌈");
+  });
+
+  summary();
+})();
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}
+</script>
+</body>
+</html>
